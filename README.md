@@ -79,6 +79,25 @@ class EmailFilterTestCommand extends Command
         
         // Perform a full checking
         $result = $instance->validate('f*cking@example.comB3Kin7YM', false);
+        
+        // Explanation of results
+        $result = [
+            'query' => $email,
+            'recommend' => true, // Recommended value of whether to accept this email or not
+            'trustable' => [
+                'exist' => true, // Does the email exist
+                'disposable' => false, // Is the email spam
+                'blacklist' => 0, // Percentage of blacklists as a float
+                'fraud_score' => 0, // Fraud score on a 100-point scale
+                'suspicious' => false, // Is the email suspicious of maliciousness
+                'high_risk' => false, // Is the email considered high risk of payment
+                'domain_type' => 'popular',
+                'domain_trust' => true, // Is the domain name trustworthy?
+                'domain_age' => '',
+                'dns_valid' => false, // Does DNS match between domain name and SMTP server?
+                'username' => true // Is the email address username trustworthy?
+            ]
+        ];
     }
 }
 ```

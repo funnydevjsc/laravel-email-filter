@@ -79,20 +79,17 @@ class EmailFilterSdk
             'query' => $email,
             'recommend' => true,
             'trustable' => [
-                "exist" => true,
-                "checkpoint" => false,
-                "deliverable" => false,
-                "disposable" => false,
-                "total_server" => 1,
-                "blacklist" => 0,
-                "fraud_score" => 0,
-                "suspicious" => false,
-                "high_risk" => false,
-                "domain_type" => "popular",
-                "domain_trust" => true,
-                "domain_age" => "unknown",
-                "dns_valid" => false,
-                "username" => true
+                'exist' => true,
+                'disposable' => false,
+                'blacklist' => 0,
+                'fraud_score' => 0,
+                'suspicious' => false,
+                'high_risk' => false,
+                'domain_type' => 'popular',
+                'domain_trust' => true,
+                'domain_age' => '',
+                'dns_valid' => false,
+                'username' => true
             ]
         ];
     }
@@ -369,13 +366,14 @@ class EmailFilterSdk
             }
         } catch (\Exception) {}
 
+        $total = 0;
         // Perform blacklist checking from poste
         try {
             if ($this->credentials['poste']) {
                 $response = $this->request('GET', 'https://poste.io/api/web-dnsbl?query=' . $domain);
                 if ($response) {
                     $this_total = substr_count($response, '"name"');
-                    $result['trustable']['total_server'] += $this_total;
+                    $total += $this_total;
                     $result['trustable']['blacklist'] += $this_total - substr_count($response, '"ok"') - substr_count($response, '"error"');
                 }
             }
@@ -402,13 +400,13 @@ class EmailFilterSdk
                 ];
                 $response = $this->request('POST', 'https://www.site24x7.com/tools/action.do', $param, 'body', false, $header);
                 if ($response) {
-                    $result['trustable']['total_server'] += 19;
+                    $total += 19;
                     $result['trustable']['blacklist'] += substr_count($response, 'Blocklisted in ');
                 }
             }
         } catch (\Exception) {}
 
-        $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $result['trustable']['total_server']) * 100, 2);
+        $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
 
         if ($fast && ($result['trustable']['blacklist'] > 25)) {
             $result['recommend'] = false;
