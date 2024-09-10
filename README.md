@@ -73,7 +73,12 @@ class EmailFilterTestCommand extends Command
     public function handle()
     {
         $instance = new EmailFilterSdk();
-        print_r($instance->validate('testing@example.comB3Kin7YM'));
+        
+        // Perform checking with fast mode turned on and only use $result['recommended'] as signal (true/false)
+        $result = $instance->validate('testing@example.comB3Kin7YM', true);
+        
+        // Perform a full checking
+        $result = $instance->validate('f*cking@example.comB3Kin7YM', false);
     }
 }
 ```
