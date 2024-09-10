@@ -121,7 +121,6 @@ class EmailFilterSdk
                 ])->insights();
 
                 $maxmind = $this->convert_array($response);
-
                 try {
                     if (!$result['trustable']['disposable']) {
                         $result['trustable']['disposable'] = $maxmind['email']['is_disposable'];
@@ -157,6 +156,7 @@ class EmailFilterSdk
         try {
             if ($this->credentials['apivoid']) {
                 $apivoid = $this->request('GET', 'https://endpoint.apivoid.com/emailverify/v1/pay-as-you-go/?key=' . $this->credentials['apivoid'] . '&email=' . $email, [], 'json');
+
                 $result['trustable']['fraud_score'] = 100 - round($apivoid['data']['score']);
                 $result['trustable']['suspicious'] = $apivoid['data']['suspicious_email'];
                 if ($fast && $result['trustable']['suspicious']) {
@@ -181,7 +181,7 @@ class EmailFilterSdk
                 }
                 if ($result['trustable']['domain_trust']) {
                     $result['trustable']['domain_trust'] = $apivoid['data']['has_a_records'];
-                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured'];
+                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'valid_tld'];
                     foreach ($tmp as $t) {
                         if (!$apivoid['data'][$t]) {
                             $result['trustable']['domain_trust'] = false;
@@ -206,20 +206,6 @@ class EmailFilterSdk
                 if ($fast && !$result['trustable']['domain_trust']) {
                     $result['recommend'] = false;
                     return $result;
-                }
-
-                if (!$result['trustable']['disposable']) {
-                    $result['trustable']['disposable'] = $apivoid['data']['free_email'];
-                    $tmp = ['russian_free_email', 'china_free_email'];
-                    foreach ($tmp as $t) {
-                        if (!$result['trustable']['disposable']) {
-                            $result['trustable']['disposable'] = $apivoid['data'][$t];
-                            if ($fast && $result['trustable']['disposable']) {
-                                $result['recommend'] = false;
-                                return $result;
-                            }
-                        }
-                    }
                 }
                 if ($fast && $result['trustable']['disposable']) {
                     $result['recommend'] = false;
@@ -252,6 +238,7 @@ class EmailFilterSdk
         try {
             if ($this->credentials['ipqualityscore']) {
                 $ipqualityscore = $this->request('GET', 'https://ipqualityscore.com/api/json/email/' . $this->credentials['ipqualityscore'] . '/' . $email . '?strictness=1', [], 'json');
+
                 if ($result['trustable']['exist']) {
                     $result['trustable']['exist'] = $ipqualityscore['valid'];
                 }
