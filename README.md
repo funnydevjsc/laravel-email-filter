@@ -45,7 +45,7 @@ If publishing files fails, please create corresponding files at the path `config
 
 #### Step 4. Update the various config settings in the published config file:
 
-After publishing the package assets a configuration file will be located at <code>config/email-filter.php</code>. Please contact 9pay.vn to get those values to fill into the config file.
+After publishing the package assets a configuration file will be located at <code>config/email-filter.php</code>.
 
 <!--- ## Usage --->
 
