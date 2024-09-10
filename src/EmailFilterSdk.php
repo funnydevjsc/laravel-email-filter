@@ -218,11 +218,11 @@ class EmailFilterSdk
                     return $result;
                 }
 
-                if ($result['trustable']['disposable']) {
+                if (!$result['trustable']['disposable']) {
                     $result['trustable']['disposable'] = $apivoid['data']['free_email'];
                     $tmp = ['russian_free_email', 'china_free_email'];
                     foreach ($tmp as $t) {
-                        if ($result['trustable']['disposable']) {
+                        if (!$result['trustable']['disposable']) {
                             $result['trustable']['disposable'] = $apivoid['data'][$t];
                             if ($fast && $result['trustable']['disposable']) {
                                 $result['recommend'] = false;
