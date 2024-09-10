@@ -275,7 +275,50 @@ class EmailFilterSdk
                 }
             }
         } catch (\Exception) {}
-
+        
+        // Parse result
+        try {
+            if ($result['trustable']['fraud_score'] > 100) {
+                $result['trustable']['fraud_score'] = 100;
+            }
+            if ($result['trustable']['fraud_score'] < 0) {
+                $result['trustable']['fraud_score'] = 0;
+            }
+        } catch (\Exception) {
+            $result['trustable']['fraud_score'] = 0;}
+        try {
+            if ($result['trustable']['blacklist'] > 25) {
+                $result['recommend'] = false;
+            } elseif ($result['trustable']['fraud_score'] >= 75) {
+                $result['recommend'] = false;
+            }
+        } catch (\Exception) {}
+        try {
+            if (!$result['trustable']['exist']) {
+                $result['recommend'] = false;
+            }
+        } catch (\Exception) {}
+        try {
+            if ($result['trustable']['high_risk']) {
+                $result['recommend'] = false;
+            }
+        } catch (\Exception) {}
+        try {
+            if (!$result['trustable']['dns_valid']) {
+                $result['recommend'] = false;
+            }
+        } catch (\Exception) {}
+        try {
+            if (!$result['trustable']['suspicious']) {
+                $result['recommend'] = false;
+            }
+        } catch (\Exception) {}
+        try {
+            if (!$result['trustable']['disposable']) {
+                $result['recommend'] = false;
+            }
+        } catch (\Exception) {}
+        
         return $result;
     }
 }
