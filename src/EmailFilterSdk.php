@@ -133,11 +133,11 @@ class EmailFilterSdk
                 }
 
                 try {
-                    if (!$result['trustable']['free_email']) {
-                        $result['trustable']['free_email'] = $maxmind['email']['is_free'];
+                    if (!$result['trustable']['disposable']) {
+                        $result['trustable']['disposable'] = $maxmind['email']['is_free'];
                     }
                 } catch (Exception) {}
-                if ($fast && $result['trustable']['free_email']) {
+                if ($fast && $result['trustable']['disposable']) {
                     $result['recommend'] = false;
                     return $result;
                 }
@@ -191,28 +191,47 @@ class EmailFilterSdk
                 }
                 if ($result['trustable']['domain_trust']) {
                     $result['trustable']['domain_trust'] = $apivoid['data']['has_a_records'];
-                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'suspicious_domain', 'dirty_words_domain', 'risky_tld'];
+                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured'];
                     foreach ($tmp as $t) {
-                        if ($result['trustable']['domain_trust']) {
-                            $result['trustable']['domain_trust'] = $apivoid['data'][$t];
+                        if (!$apivoid['data'][$t]) {
+                            $result['trustable']['domain_trust'] = false;
+                            if ($fast) {
+                                $result['recommend'] = false;
+                                return $result;
+                            }
                         }
                     }
+                    $tmp = ['suspicious_domain', 'dirty_words_domain', 'risky_tld'];
+                    foreach ($tmp as $t) {
+                        if ($apivoid['data'][$t]) {
+                            $result['trustable']['domain_trust'] = false;
+                            if ($fast) {
+                                $result['recommend'] = false;
+                                return $result;
+                            }
+                        }
+                    }
+
                 }
-                if ($fast && $result['trustable']['domain_trust']) {
+                if ($fast && !$result['trustable']['domain_trust']) {
                     $result['recommend'] = false;
                     return $result;
                 }
 
-                if ($result['trustable']['free_email']) {
-                    $result['trustable']['free_email'] = $apivoid['data']['free_email'];
+                if ($result['trustable']['disposable']) {
+                    $result['trustable']['disposable'] = $apivoid['data']['free_email'];
                     $tmp = ['russian_free_email', 'china_free_email'];
                     foreach ($tmp as $t) {
-                        if ($result['trustable']['domain_trust']) {
-                            $result['trustable']['domain_trust'] = $apivoid['data'][$t];
+                        if ($result['trustable']['disposable']) {
+                            $result['trustable']['disposable'] = $apivoid['data'][$t];
+                            if ($fast && $result['trustable']['disposable']) {
+                                $result['recommend'] = false;
+                                return $result;
+                            }
                         }
                     }
                 }
-                if ($fast && $result['trustable']['free_email']) {
+                if ($fast && $result['trustable']['disposable']) {
                     $result['recommend'] = false;
                     return $result;
                 }
