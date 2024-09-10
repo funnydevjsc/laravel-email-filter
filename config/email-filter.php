@@ -10,6 +10,6 @@ return [
             'license' => env('EMAIL_FILTER_MAXMIND_LICENSE', ''),
         ],
         'apivoid' => env('EMAIL_FILTER_APIVOID_KEY', ''),
-        'ipqualityscore' => env('EMAIL_FILTER_APIVOID_KEY', '')
+        'ipqualityscore' => env('EMAIL_FILTER_IPQUALITYSCORE_KEY', '')
     ]
 ];
