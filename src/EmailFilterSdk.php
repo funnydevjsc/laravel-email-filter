@@ -89,7 +89,7 @@ class EmailFilterSdk
                 'domain_type' => 'popular',
                 'domain_trust' => true,
                 'domain_age' => '',
-                'dns_valid' => false,
+                'dns_valid' => true,
                 'username' => true
             ]
         ];
@@ -319,8 +319,6 @@ class EmailFilterSdk
                 }
             }
         } catch (Exception) {}
-
-        // Parse result
         try {
             if ($result['trustable']['fraud_score'] > 100) {
                 $result['trustable']['fraud_score'] = 100;
@@ -328,40 +326,15 @@ class EmailFilterSdk
             if ($result['trustable']['fraud_score'] < 0) {
                 $result['trustable']['fraud_score'] = 0;
             }
+            if ($result['trustable']['fraud_score'] >= 75) {
+                $result['recommend'] = false;
+                if ($fast) {
+                    return $result;
+                }
+            }
         } catch (Exception) {
-            $result['trustable']['fraud_score'] = 0;}
-        try {
-            if ($result['trustable']['blacklist'] > 25) {
-                $result['recommend'] = false;
-            } elseif ($result['trustable']['fraud_score'] >= 75) {
-                $result['recommend'] = false;
-            }
-        } catch (Exception) {}
-        try {
-            if (!$result['trustable']['exist']) {
-                $result['recommend'] = false;
-            }
-        } catch (Exception) {}
-        try {
-            if ($result['trustable']['high_risk']) {
-                $result['recommend'] = false;
-            }
-        } catch (Exception) {}
-        try {
-            if (!$result['trustable']['dns_valid']) {
-                $result['recommend'] = false;
-            }
-        } catch (Exception) {}
-        try {
-            if (!$result['trustable']['suspicious']) {
-                $result['recommend'] = false;
-            }
-        } catch (Exception) {}
-        try {
-            if (!$result['trustable']['disposable']) {
-                $result['recommend'] = false;
-            }
-        } catch (Exception) {}
+            $result['trustable']['fraud_score'] = 0;
+        }
 
         $total = 0;
         // Perform blacklist checking from poste
@@ -405,7 +378,7 @@ class EmailFilterSdk
 
         $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
 
-        if ($fast && ($result['trustable']['blacklist'] > 25)) {
+        if ($fast && ($result['trustable']['blacklist'] >= 30)) {
             $result['recommend'] = false;
             return $result;
         }

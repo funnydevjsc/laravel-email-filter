@@ -3,7 +3,7 @@
     "description": "Laravel package to filter bad email",
     "type": "library",
     "license": "MIT",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "autoload": {
         "psr-4": {
             "FunnyDev\\EmailFilter\\": "src/"
