@@ -84,7 +84,7 @@ class EmailFilterSdk
                 "deliverable" => false,
                 "disposable" => false,
                 "total_server" => 1,
-                "blacklist" => '0%',
+                "blacklist" => 0,
                 "fraud_score" => 0,
                 "suspicious" => false,
                 "high_risk" => false,
@@ -97,11 +97,11 @@ class EmailFilterSdk
         ];
     }
 
-    public function validate($email): array
+    public function validate(string $email, bool $fast=false): array
     {
         $domain = explode('@', $email)[1];
         $result = $this->init_result($email);
-        
+
         // Perform ltd allowed checking
         $regex = '/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.('.$this->tld.')$/';
         if (!preg_match($regex, $email)) {
@@ -109,46 +109,9 @@ class EmailFilterSdk
             $result['trustable']['domain_trust'] = false;
         }
 
-        // Perform blacklist checking from poste
-        try {
-            if ($this->credentials['poste']) {
-                $response = $this->request('GET', 'https://poste.io/api/web-dnsbl?query=' . $domain);
-                if ($response) {
-                    $this_total = substr_count($response, '"name"');
-                    $result['trustable']['total_server'] += $this_total;
-                    $result['trustable']['blacklist'] += $this_total - substr_count($response, '"ok"') - substr_count($response, '"error"');
-                }
-            }
-        } catch (\Exception) {}
-
-        // Perform blacklist checking from site24x7.com
-        try {
-            if ($this->credentials['site247']) {
-                $param = [
-                    'execute' => 'performRBLCheck',
-                    'method' => 'performRBLCheck',
-                    'url' => $domain,
-                    'hostName' => $domain,
-                    'timestamp' => time()
-                ];
-                $header = [
-                    'Connection' => 'keep-alive',
-                    'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-                    'sec-ch-ua' => '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
-                    'sec-ch-ua-platform' => '"macOS"',
-                    'sec-ch-ua-mobile' => '?0',
-                    'X-Requested-With' => 'XMLHttpRequest',
-                    'Referer' => 'https://www.site24x7.com/tools/blacklist-check.html'
-                ];
-                $response = $this->request('POST', 'https://www.site24x7.com/tools/action.do', $param, 'body', false, $header);
-                if ($response) {
-                    $result['trustable']['total_server'] += 19;
-                    $result['trustable']['blacklist'] += substr_count($response, 'Blocklisted in ');
-                }
-            }
-        } catch (\Exception) {}
-        
-        $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $result['trustable']['total_server']) * 100, 2);
+        if ($fast && !$result['recommend']) {
+            return $result;
+        }
 
         // Perform quality checking from Maxmind
         try {
@@ -165,24 +128,35 @@ class EmailFilterSdk
                     if (!$result['trustable']['disposable']) {
                         $result['trustable']['disposable'] = $maxmind['email']['is_disposable'];
                     }
-                } catch (\Exception) {
+                } catch (\Exception) {}
+                if ($fast && $result['trustable']['disposable']) {
+                    $result['recommend'] = false;
+                    return $result;
                 }
+
                 try {
                     if (!$result['trustable']['free_email']) {
                         $result['trustable']['free_email'] = $maxmind['email']['is_free'];
                     }
-                } catch (\Exception) {
+                } catch (\Exception) {}
+                if ($fast && $result['trustable']['free_email']) {
+                    $result['recommend'] = false;
+                    return $result;
                 }
+
                 try {
                     if (!$result['trustable']['high_risk']) {
                         $result['trustable']['high_risk'] = $maxmind['email']['is_high_risk'];
                     }
-                } catch (\Exception) {
+                } catch (\Exception) {}
+                if ($fast && $result['trustable']['high_risk']) {
+                    $result['recommend'] = false;
+                    return $result;
                 }
+
                 try {
                     $result['trustable']['domain_age'] = $maxmind['email']['domain']['first_seen'];
-                } catch (\Exception) {
-                }
+                } catch (\Exception) {}
                 try {
                     $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], $maxmind['risk_score']);
                 } catch (\Exception) {
@@ -197,7 +171,17 @@ class EmailFilterSdk
                 $apivoid = $this->request('GET', 'https://endpoint.apivoid.com/emailverify/v1/pay-as-you-go/?key=' . $this->credentials['apivoid'] . '&email=' . $email, [], 'json');
                 $result['trustable']['fraud_score'] = 100 - round($apivoid['data']['score']);
                 $result['trustable']['suspicious'] = $apivoid['data']['suspicious_email'];
+                if ($fast && $result['trustable']['suspicious']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 $result['trustable']['disposable'] = $apivoid['data']['disposable'];
+                if ($fast && $result['trustable']['disposable']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if ($apivoid['data']['domain_popular']) {
                     $result['trustable']['domain_type'] = 'popular';
                 }
@@ -207,28 +191,52 @@ class EmailFilterSdk
                         $result['trustable']['domain_type'] = explode('_', $t)[0];
                     }
                 }
-                $result['trustable']['domain_trust'] = $apivoid['data']['has_a_records'];
-                $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'suspicious_domain', 'dirty_words_domain', 'risky_tld'];
-                foreach ($tmp as $t) {
-                    if ($result['trustable']['domain_trust']) {
-                        $result['trustable']['domain_trust'] = $apivoid['data'][$t];
+                if ($result['trustable']['domain_trust']) {
+                    $result['trustable']['domain_trust'] = $apivoid['data']['has_a_records'];
+                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'suspicious_domain', 'dirty_words_domain', 'risky_tld'];
+                    foreach ($tmp as $t) {
+                        if ($result['trustable']['domain_trust']) {
+                            $result['trustable']['domain_trust'] = $apivoid['data'][$t];
+                        }
                     }
                 }
-                $result['trustable']['free_email'] = $apivoid['data']['free_email'];
-                $tmp = ['russian_free_email', 'china_free_email'];
-                foreach ($tmp as $t) {
-                    if ($result['trustable']['domain_trust']) {
-                        $result['trustable']['domain_trust'] = $apivoid['data'][$t];
+                if ($fast && $result['trustable']['domain_trust']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
+                if ($result['trustable']['free_email']) {
+                    $result['trustable']['free_email'] = $apivoid['data']['free_email'];
+                    $tmp = ['russian_free_email', 'china_free_email'];
+                    foreach ($tmp as $t) {
+                        if ($result['trustable']['domain_trust']) {
+                            $result['trustable']['domain_trust'] = $apivoid['data'][$t];
+                        }
                     }
                 }
-                $tmp = ['suspicious_username', 'dirty_words_username'];
-                foreach ($tmp as $t) {
-                    if (($result['trustable']['username']) && ($apivoid['data'][$t])) {
-                        $result['trustable']['username'] = false;
+                if ($fast && $result['trustable']['free_email']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
+                if ($result['trustable']['username']) {
+                    $tmp = ['suspicious_username', 'dirty_words_username'];
+                    foreach ($tmp as $t) {
+                        if (($result['trustable']['username']) && ($apivoid['data'][$t])) {
+                            $result['trustable']['username'] = false;
+                        }
                     }
                 }
+                if ($fast && !$result['trustable']['username']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if ($apivoid['data']['should_block']) {
                     $result['recommend'] = false;
+                    if ($fast) {
+                        return $result;
+                    }
                 }
             }
         } catch (\Exception) {}
@@ -236,38 +244,80 @@ class EmailFilterSdk
         // Perform quality checking from ipqualityscore
         try {
             if ($this->credentials['ipqualityscore']) {
-                $ipqualityscore = $this->request('GET', 'https://ipqualityscore.com/api/json/email/' . $this->credentials['ipqualityscore'] . '/' . $email . '?strictness=1', 'json');
+                $ipqualityscore = $this->request('GET', 'https://ipqualityscore.com/api/json/email/' . $this->credentials['ipqualityscore'] . '/' . $email . '?strictness=1', [], 'json');
                 if ($result['trustable']['exist']) {
                     $result['trustable']['exist'] = $ipqualityscore['valid'];
                 }
+                if ($fast && !$result['trustable']['exist']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if (!$result['trustable']['disposable']) {
                     $result['trustable']['disposable'] = $ipqualityscore['disposable'];
                 }
+                if ($fast && $result['trustable']['disposable']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if (!$result['trustable']['disposable']) {
                     $result['trustable']['disposable'] = $ipqualityscore['catch_all'];
                 }
+                if ($fast && $result['trustable']['disposable']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if (!$result['trustable']['disposable']) {
                     $result['trustable']['disposable'] = $ipqualityscore['generic'];
                 }
+                if ($fast && $result['trustable']['disposable']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if (!$result['trustable']['suspicious']) {
                     $result['trustable']['suspicious'] = $ipqualityscore['recent_abuse'];
                 }
+                if ($fast && $result['trustable']['suspicious']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if (!$result['trustable']['suspicious']) {
                     $result['trustable']['suspicious'] = $ipqualityscore['honeypot'];
                 }
-                $result['trustable']['dns_valid'] = $ipqualityscore['dns_valid'];
+                if ($fast && $result['trustable']['suspicious']) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 if ($result['trustable']['dns_valid']) {
-                    if ($ipqualityscore['overall_score'] == 0) {
-                        $result['trustable']['dns_valid'] = false;
+                    $result['trustable']['dns_valid'] = $ipqualityscore['dns_valid'];
+                    if ($result['trustable']['dns_valid']) {
+                        if ($ipqualityscore['overall_score'] == 0) {
+                            $result['trustable']['dns_valid'] = false;
+                            $result['recommend'] = false;
+                        }
+                    }
+                    if ($fast && !$result['trustable']['dns_valid']) {
                         $result['recommend'] = false;
+                        return $result;
+                    }
+
+                    if ($result['trustable']['dns_valid']) {
+                        if ($ipqualityscore['smtp_score'] == -1) {
+                            $result['trustable']['dns_valid'] = false;
+                            $result['recommend'] = false;
+                        }
+                    }
+                    if ($fast && !$result['trustable']['dns_valid']) {
+                        $result['recommend'] = false;
+                        return $result;
                     }
                 }
-                if ($result['trustable']['dns_valid']) {
-                    if ($ipqualityscore['smtp_score'] == -1) {
-                        $result['trustable']['dns_valid'] = false;
-                        $result['recommend'] = false;
-                    }
-                }
+
                 try {
                     $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], round($ipqualityscore['fraud_score']));
                 } catch (\Exception) {
@@ -275,7 +325,7 @@ class EmailFilterSdk
                 }
             }
         } catch (\Exception) {}
-        
+
         // Parse result
         try {
             if ($result['trustable']['fraud_score'] > 100) {
@@ -318,7 +368,53 @@ class EmailFilterSdk
                 $result['recommend'] = false;
             }
         } catch (\Exception) {}
-        
+
+        // Perform blacklist checking from poste
+        try {
+            if ($this->credentials['poste']) {
+                $response = $this->request('GET', 'https://poste.io/api/web-dnsbl?query=' . $domain);
+                if ($response) {
+                    $this_total = substr_count($response, '"name"');
+                    $result['trustable']['total_server'] += $this_total;
+                    $result['trustable']['blacklist'] += $this_total - substr_count($response, '"ok"') - substr_count($response, '"error"');
+                }
+            }
+        } catch (\Exception) {}
+
+        // Perform blacklist checking from site24x7.com
+        try {
+            if ($this->credentials['site247']) {
+                $param = [
+                    'execute' => 'performRBLCheck',
+                    'method' => 'performRBLCheck',
+                    'url' => $domain,
+                    'hostName' => $domain,
+                    'timestamp' => time()
+                ];
+                $header = [
+                    'Connection' => 'keep-alive',
+                    'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+                    'sec-ch-ua' => '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
+                    'sec-ch-ua-platform' => '"macOS"',
+                    'sec-ch-ua-mobile' => '?0',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                    'Referer' => 'https://www.site24x7.com/tools/blacklist-check.html'
+                ];
+                $response = $this->request('POST', 'https://www.site24x7.com/tools/action.do', $param, 'body', false, $header);
+                if ($response) {
+                    $result['trustable']['total_server'] += 19;
+                    $result['trustable']['blacklist'] += substr_count($response, 'Blocklisted in ');
+                }
+            }
+        } catch (\Exception) {}
+
+        $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $result['trustable']['total_server']) * 100, 2);
+
+        if ($fast && ($result['trustable']['blacklist'] > 25)) {
+            $result['recommend'] = false;
+            return $result;
+        }
+
         return $result;
     }
 }
