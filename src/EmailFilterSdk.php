@@ -376,7 +376,11 @@ class EmailFilterSdk
             }
         } catch (Exception) {}
 
-        $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
+        if (($total === 0) || ($result['trustable']['blacklist'] === 0)) {
+            $result['trustable']['blacklist'] = 0;
+        } else {
+            $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
+        }
 
         if ($fast && ($result['trustable']['blacklist'] >= 30)) {
             $result['recommend'] = false;
