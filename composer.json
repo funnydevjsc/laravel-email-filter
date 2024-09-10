@@ -1,0 +1,39 @@
+{
+    "name": "funnydevjsc/laravel-email-filter",
+    "description": "Laravel package to filter bad email",
+    "type": "library",
+    "license": "MIT",
+    "version": "1.0.0",
+    "autoload": {
+        "psr-4": {
+            "FunnyDev\\EmailFilter\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Funny dev., Jsc",
+            "email": "contact@funnydev.vn",
+            "homepage": "https://github.com/funnydevjsc"
+        }
+    ],
+    "homepage": "https://github.com/funnydevjsc/laravel-email-filter",
+    "keywords": ["Laravel", "email", "filter"],
+    "require": {
+        "php": "^8.1",
+        "maxmind/minfraud": "^3.1"
+    },
+    "require-dev": {
+        "illuminate/support": "^8.0",
+        "illuminate/http": "^8.83",
+        "illuminate/routing": "^8.83"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "FunnyDev\\EmailFilter\\EmailFilterServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
