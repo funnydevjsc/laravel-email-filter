@@ -133,16 +133,6 @@ class EmailFilterSdk
                 }
 
                 try {
-                    if (!$result['trustable']['disposable']) {
-                        $result['trustable']['disposable'] = $maxmind['email']['is_free'];
-                    }
-                } catch (Exception) {}
-                if ($fast && $result['trustable']['disposable']) {
-                    $result['recommend'] = false;
-                    return $result;
-                }
-
-                try {
                     if (!$result['trustable']['high_risk']) {
                         $result['trustable']['high_risk'] = $maxmind['email']['is_high_risk'];
                     }
