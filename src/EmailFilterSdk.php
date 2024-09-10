@@ -2,6 +2,7 @@
 
 namespace FunnyDev\EmailFilter;
 
+use Exception;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -125,7 +126,7 @@ class EmailFilterSdk
                     if (!$result['trustable']['disposable']) {
                         $result['trustable']['disposable'] = $maxmind['email']['is_disposable'];
                     }
-                } catch (\Exception) {}
+                } catch (Exception) {}
                 if ($fast && $result['trustable']['disposable']) {
                     $result['recommend'] = false;
                     return $result;
@@ -135,7 +136,7 @@ class EmailFilterSdk
                     if (!$result['trustable']['free_email']) {
                         $result['trustable']['free_email'] = $maxmind['email']['is_free'];
                     }
-                } catch (\Exception) {}
+                } catch (Exception) {}
                 if ($fast && $result['trustable']['free_email']) {
                     $result['recommend'] = false;
                     return $result;
@@ -145,7 +146,7 @@ class EmailFilterSdk
                     if (!$result['trustable']['high_risk']) {
                         $result['trustable']['high_risk'] = $maxmind['email']['is_high_risk'];
                     }
-                } catch (\Exception) {}
+                } catch (Exception) {}
                 if ($fast && $result['trustable']['high_risk']) {
                     $result['recommend'] = false;
                     return $result;
@@ -153,14 +154,14 @@ class EmailFilterSdk
 
                 try {
                     $result['trustable']['domain_age'] = $maxmind['email']['domain']['first_seen'];
-                } catch (\Exception) {}
+                } catch (Exception) {}
                 try {
                     $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], $maxmind['risk_score']);
-                } catch (\Exception) {
+                } catch (Exception) {
                     $result['trustable']['fraud_score'] = round($maxmind['risk_score']);
                 }
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
 
         // Perform quality checking from apivoid
         try {
@@ -236,7 +237,7 @@ class EmailFilterSdk
                     }
                 }
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
 
         // Perform quality checking from ipqualityscore
         try {
@@ -317,11 +318,11 @@ class EmailFilterSdk
 
                 try {
                     $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], round($ipqualityscore['fraud_score']));
-                } catch (\Exception) {
+                } catch (Exception) {
                     $result['trustable']['fraud_score'] = round($ipqualityscore['fraud_score']);
                 }
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
 
         // Parse result
         try {
@@ -331,7 +332,7 @@ class EmailFilterSdk
             if ($result['trustable']['fraud_score'] < 0) {
                 $result['trustable']['fraud_score'] = 0;
             }
-        } catch (\Exception) {
+        } catch (Exception) {
             $result['trustable']['fraud_score'] = 0;}
         try {
             if ($result['trustable']['blacklist'] > 25) {
@@ -339,32 +340,32 @@ class EmailFilterSdk
             } elseif ($result['trustable']['fraud_score'] >= 75) {
                 $result['recommend'] = false;
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
         try {
             if (!$result['trustable']['exist']) {
                 $result['recommend'] = false;
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
         try {
             if ($result['trustable']['high_risk']) {
                 $result['recommend'] = false;
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
         try {
             if (!$result['trustable']['dns_valid']) {
                 $result['recommend'] = false;
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
         try {
             if (!$result['trustable']['suspicious']) {
                 $result['recommend'] = false;
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
         try {
             if (!$result['trustable']['disposable']) {
                 $result['recommend'] = false;
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
 
         $total = 0;
         // Perform blacklist checking from poste
@@ -377,7 +378,7 @@ class EmailFilterSdk
                     $result['trustable']['blacklist'] += $this_total - substr_count($response, '"ok"') - substr_count($response, '"error"');
                 }
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
 
         // Perform blacklist checking from site24x7.com
         try {
@@ -404,7 +405,7 @@ class EmailFilterSdk
                     $result['trustable']['blacklist'] += substr_count($response, 'Blocklisted in ');
                 }
             }
-        } catch (\Exception) {}
+        } catch (Exception) {}
 
         $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
 

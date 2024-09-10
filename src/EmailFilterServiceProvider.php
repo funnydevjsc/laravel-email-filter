@@ -2,6 +2,8 @@
 
 namespace FunnyDev\EmailFilter;
 
+use Exception;
+use Illuminate\Foundation\Console\VendorPublishCommand;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
@@ -23,12 +25,12 @@ class EmailFilterServiceProvider extends ServiceProvider
         try {
             if (!file_exists(config_path('email-filter.php'))) {
                 $this->commands([
-                    \Illuminate\Foundation\Console\VendorPublishCommand::class,
+                    VendorPublishCommand::class,
                 ]);
 
                 Artisan::call('vendor:publish', ['--provider' => 'FunnyDev\\EmailFilter\\EmailFilterServiceProvider', '--tag' => ['email-filter']]);
             }
-        } catch (\Exception $e) {}
+        } catch (Exception $e) {}
     }
 
     /**
@@ -41,9 +43,9 @@ class EmailFilterServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             __DIR__ . '/../config/email-filter.php', 'email-filter'
         );
-        $this->app->singleton(\FunnyDev\EmailFilter\EmailFilterSdk::class, function ($app) {
+        $this->app->singleton(EmailFilterSdk::class, function ($app) {
             $tld = $app['config']['email-filter.tld'];
-            return new \FunnyDev\EmailFilter\EmailFilterSdk($tld);
+            return new EmailFilterSdk($tld);
         });
     }
 }
