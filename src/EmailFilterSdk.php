@@ -152,22 +152,58 @@ class EmailFilterSdk
             }
         } catch (Exception) {}
 
+        // Perform quality checking from cleantalk
+        try {
+            if ($this->credentials['cleantalk']) {
+                $cleantalk = $this->request('GET', 'https://api.cleantalk.org/?method_name=spam_check&auth_key=' . $this->credentials['cleantalk'] . '&email=' . $email, [], 'json');
+
+                if ($result['trustable']['exist']) {
+                    $result['trustable']['exist'] = ! ($cleantalk['data'][$email]['exists'] === 0);
+                    if ($fast && ! $result['trustable']['exist']) {
+                        $result['recommend'] = false;
+                        return $result;
+                    }
+                }
+
+                if (!$result['trustable']['disposable']) {
+                    $result['trustable']['disposable'] = $cleantalk['data'][$email]['disposable_email'] === 1;
+                    if ($fast && $result['trustable']['disposable']) {
+                        $result['recommend'] = false;
+                        return $result;
+                    }
+                }
+
+                $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], round($cleantalk['data'][$email]['spam_rate'] * 100));
+                if ($fast && ($result['trustable']['fraud_score'] >= 75)) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+            }
+        } catch (Exception) {}
+
         // Perform quality checking from apivoid
         try {
             if ($this->credentials['apivoid']) {
                 $apivoid = $this->request('GET', 'https://endpoint.apivoid.com/emailverify/v1/pay-as-you-go/?key=' . $this->credentials['apivoid'] . '&email=' . $email, [], 'json');
 
-                $result['trustable']['fraud_score'] = 100 - round($apivoid['data']['score']);
+                $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], round($apivoid['data']['score']));
+                if ($fast && ($result['trustable']['fraud_score'] >= 75)) {
+                    $result['recommend'] = false;
+                    return $result;
+                }
+
                 $result['trustable']['suspicious'] = $apivoid['data']['suspicious_email'];
                 if ($fast && $result['trustable']['suspicious']) {
                     $result['recommend'] = false;
                     return $result;
                 }
 
-                $result['trustable']['disposable'] = $apivoid['data']['disposable'];
-                if ($fast && $result['trustable']['disposable']) {
-                    $result['recommend'] = false;
-                    return $result;
+                if (!$result['trustable']['disposable']) {
+                    $result['trustable']['disposable'] = $apivoid['data']['disposable'];
+                    if ($fast && $result['trustable']['disposable']) {
+                        $result['recommend'] = false;
+                        return $result;
+                    }
                 }
 
                 if ($apivoid['data']['domain_popular']) {
@@ -312,10 +348,10 @@ class EmailFilterSdk
                     }
                 }
 
-                try {
-                    $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], round($ipqualityscore['fraud_score']));
-                } catch (Exception) {
-                    $result['trustable']['fraud_score'] = round($ipqualityscore['fraud_score']);
+                $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], round($ipqualityscore['fraud_score']));
+                if ($fast && ($result['trustable']['fraud_score'] >= 75)) {
+                    $result['recommend'] = false;
+                    return $result;
                 }
             }
         } catch (Exception) {}
