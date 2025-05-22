@@ -9,6 +9,7 @@ return [
             'account' => env('EMAIL_FILTER_MAXMIND_ACCOUNT', ''),
             'license' => env('EMAIL_FILTER_MAXMIND_LICENSE', ''),
         ],
+        'cleantalk' => env('EMAIL_FILTER_CLEANTALK_KEY', ''),
         'apivoid' => env('EMAIL_FILTER_APIVOID_KEY', ''),
         'ipqualityscore' => env('EMAIL_FILTER_IPQUALITYSCORE_KEY', '')
     ]
