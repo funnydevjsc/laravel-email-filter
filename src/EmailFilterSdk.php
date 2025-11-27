@@ -189,9 +189,9 @@ class EmailFilterSdk
         }
         [$localPart, $domain] = $parts;
 
-        // Strict username policy: only a-z, dot (.), dash (-), underscore (_)
-        // Reject anything else (including digits and plus sign) and short-circuit.
-        if ($localPart === '' || !preg_match('/^[a-z._-]+$/', $localPart)) {
+        // Strict username policy: only a-z, 0-9, dot (.), dash (-), underscore (_)
+        // Reject anything else (excluding the plus sign and other symbols) and short-circuit.
+        if ($localPart === '' || !preg_match('/^[a-z0-9._-]+$/', $localPart)) {
             $result['trustable']['username'] = false;
             $result['recommend'] = false;
             $result['reason'] = 'This email username was marked as dirty';
