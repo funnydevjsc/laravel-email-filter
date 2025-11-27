@@ -13,7 +13,7 @@ class EmailFilterController
             'email' => 'required|email'
         ]);
         $instance = new EmailFilterSdk();
-        $result = $instance->validate($request->input('email'));
+        $result = $instance->validate(email: $request->input('email'), fast: false, score: true);
 
         /*
          * You could handle the response of validator here like:

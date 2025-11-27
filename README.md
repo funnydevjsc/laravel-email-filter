@@ -75,15 +75,16 @@ class EmailFilterTestCommand extends Command
         $instance = new EmailFilterSdk();
         
         // Perform checking with fast mode turned on and only use $result['recommended'] as signal (true/false)
-        $result = $instance->validate('testing@example.comB3Kin7YM', true);
+        $result = $instance->validate(email: 'testing@example.comB3Kin7YM', fast: true, score: false);
         
         // Perform a full checking
-        $result = $instance->validate('f*cking@example.comB3Kin7YM', false);
+        $result = $instance->validate(email: 'f*cking@example.comB3Kin7YM', fast: false, score: true);
         
         // Explanation of results
         $result = [
             'query' => $email,
             'recommend' => true, // Recommended value of whether to accept this email or not
+            'reason' => '', // Reason why the email is not recommended
             'trustable' => [
                 'exist' => true, // Does the email exist
                 'disposable' => false, // Is the email spam
