@@ -348,7 +348,7 @@ class EmailFilterSdk
                 $cleantalk = $this->request('GET', 'https://api.cleantalk.org/?method_name=spam_check&auth_key=' . $this->credentials['cleantalk'] . '&email=' . urlencode($email), [], 'json', false, [], [], ['timeout' => $fast ? 3 : 10]);
 
                 if ($result['trustable']['exist']) {
-                    $result['trustable']['exist'] = ! (isset($cleantalk['data'][$email]['exists']) && $cleantalk['data'][$email]['exists'] === 0);
+                    $result['trustable']['exist'] = ! (isset($cleantalk['data'][$email]['exists']) && ($cleantalk['data'][$email]['exists'] === 0));
                     if ($fast && ! $result['trustable']['exist']) {
                         $result['reason'] = 'This email was marked as non-existent';
                         $result['recommend'] = false;
@@ -357,7 +357,7 @@ class EmailFilterSdk
                 }
 
                 if (!$result['trustable']['disposable']) {
-                    $result['trustable']['disposable'] = (isset($cleantalk['data'][$email]['disposable_email']) && $cleantalk['data'][$email]['disposable_email'] === 1);
+                    $result['trustable']['disposable'] = (isset($cleantalk['data'][$email]['disposable_email']) && ($cleantalk['data'][$email]['disposable_email'] === 1));
                     if ($fast && $result['trustable']['disposable']) {
                         $result['reason'] = 'This email was marked as disposable';
                         $result['recommend'] = false;
@@ -417,7 +417,7 @@ class EmailFilterSdk
                 }
                 if ($result['trustable']['domain_trust']) {
                     $result['trustable']['domain_trust'] = (bool)($apivoid['data']['has_a_records'] ?? false);
-                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'valid_tld'];
+                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'valid_tld', 'is_spoofable'];
                     foreach ($tmp as $t) {
                         if (empty($apivoid['data'][$t])) {
                             $result['trustable']['domain_trust'] = false;
@@ -466,12 +466,21 @@ class EmailFilterSdk
                     return $result;
                 }
 
-                if (!empty($apivoid['data']['should_block'])) {
+                if ($apivoid['data']['should_block']) {
                     $result['reason'] = 'This email was marked as should be blocked';
                     $result['recommend'] = false;
                     if ($fast) {
                         return $result;
                     }
+                }
+
+                if (isset($apivoid['score'])) {
+                    $result['trustable']['fraud_score'] = max($result['trustable']['fraud_score'], (int) round($apivoid['score']));
+                }
+                if ($fast && $score && ($result['trustable']['fraud_score'] >= 75)) {
+                    $result['recommend'] = false;
+                    $result['reason'] = 'This email was marked as fraudulent';
+                    return $result;
                 }
             }
         } catch (Exception) {}
