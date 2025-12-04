@@ -644,17 +644,11 @@ class EmailFilterSdk
         if ($fast && ($result['trustable']['blacklist'] >= 30)) {
             $result['reason'] = 'This email was marked as blacklisted';
             $result['recommend'] = false;
-            if ($fast) {
-                // Cache only final fast-mode results
-                try { Cache::put($cacheKey, $result, 300); } catch (Exception) {}
-            }
             return $result;
         }
 
-        if ($fast) {
-            // Store fast-mode result to absorb bursts
-            try { Cache::put($cacheKey, $result, 300); } catch (Exception) {}
-        }
+        // Cache only final results
+        try { Cache::put($cacheKey, $result, 300); } catch (Exception) {}
 
         return $result;
     }
