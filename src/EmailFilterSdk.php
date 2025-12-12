@@ -189,6 +189,19 @@ class EmailFilterSdk
         }
         [$localPart, $domain] = $parts;
 
+        // Cache for burst protection (fast repeated checks)
+        $cacheKey = 'email_filter:'.md5(implode('|', [$email, (int)$fast, (int)$score, $this->tld]));
+        if ($fast) {
+            try {
+                $cached = Cache::get($cacheKey);
+                if (is_array($cached)) {
+                    return $cached;
+                }
+            } catch (Exception) {
+                // Ignore cache errors
+            }
+        }
+
         // Strict username policy: only a-z, 0-9, dot (.), dash (-), underscore (_)
         // Reject anything else (excluding the plus sign and other symbols) and short-circuit.
         if ($localPart === '' || !preg_match('/^[a-z0-9._-]+$/', $localPart)) {
@@ -281,19 +294,6 @@ class EmailFilterSdk
             $result['recommend'] = false;
             $result['reason'] = 'This email domain was marked as DNS invalid';
             if ($fast) return $result;
-        }
-
-        // Cache for burst protection (fast repeated checks)
-        $cacheKey = 'email_filter:'.md5(implode('|', [$email, (int)$fast, (int)$score, $this->tld]));
-        if ($fast) {
-            try {
-                $cached = Cache::get($cacheKey);
-                if (is_array($cached)) {
-                    return $cached;
-                }
-            } catch (Exception) {
-                // Ignore cache errors
-            }
         }
 
         // Perform quality checking from Maxmind
