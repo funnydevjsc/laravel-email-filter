@@ -167,7 +167,7 @@ class EmailFilterSdk
         ];
     }
 
-    public function validate(string $email, bool $fast = true, bool $score = false): array
+    public function handle(string $email, bool $fast = true, bool $score = false): array
     {
         // Force email lowercase per policy
         $email = strtolower(trim($email));
@@ -188,19 +188,6 @@ class EmailFilterSdk
             return $result;
         }
         [$localPart, $domain] = $parts;
-
-        // Cache for burst protection (fast repeated checks)
-        $cacheKey = 'email_filter:'.md5(implode('|', [$email, (int)$fast, (int)$score, $this->tld]));
-        if ($fast) {
-            try {
-                $cached = Cache::get($cacheKey);
-                if (is_array($cached)) {
-                    return $cached;
-                }
-            } catch (Exception) {
-                // Ignore cache errors
-            }
-        }
 
         // Strict username policy: only a-z, 0-9, dot (.), dash (-), underscore (_)
         // Reject anything else (excluding the plus sign and other symbols) and short-circuit.
@@ -647,8 +634,30 @@ class EmailFilterSdk
             return $result;
         }
 
+        return $result;
+    }
+
+    public function validate(string $email, bool $fast = true, bool $score = false): array
+    {
+        if ($fast) {
+            // Cache for burst protection (fast repeated checks)
+            $cacheKey = 'email_filter:'.md5(implode('|', [$email, (int)$fast, (int)$score, $this->tld]));
+            if ($fast) {
+                try {
+                    $cached = Cache::get($cacheKey);
+                    if (is_array($cached)) {
+                        return $cached;
+                    }
+                } catch (Exception) {
+                    // Ignore cache errors
+                }
+            }
+        }
+
+        $result = $this->handle($email, $fast, $score);
+
         // Cache only final results
-        try { Cache::put($cacheKey, $result, 300); } catch (Exception) {}
+        try { Cache::put($cacheKey, $result, 3600); } catch (Exception) {}
 
         return $result;
     }
