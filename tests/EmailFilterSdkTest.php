@@ -10,7 +10,17 @@ final class EmailFilterSdkTest extends TestCase
     private function sdk(string $tld = '', array $credentials = []): EmailFilterSdk
     {
         // Ensure we don't trigger Config facade by passing a non-empty credentials array
-        $creds = $credentials ?: ['maxmind' => ['account' => null, 'license' => null]];
+        $creds = $credentials ?: [
+            'poste' => 'ON',
+            'site247' => 'ON',
+            'maxmind' => [
+                'account' => '',
+                'license' => '',
+            ],
+            'cleantalk' => '',
+            'apivoid' => '',
+            'ipqualityscore' => ''
+        ];
         return new EmailFilterSdk($tld, $creds);
     }
 
