@@ -598,7 +598,7 @@ class EmailFilterSdk
         $total = 0;
         // Perform blacklist checking from poste
         try {
-            if (!empty($this->credentials['poste'])) {
+            if (!empty($this->credentials['poste']) && (strtolower($this->credentials['poste']) !== 'off')) {
                 $response = $this->request('GET', 'https://poste.io/api/web-dnsbl?query=' . $domain);
                 if ($response) {
                     $this_total = substr_count($response, '"name"');
@@ -608,9 +608,9 @@ class EmailFilterSdk
             }
         } catch (Exception) {}
 
-        // Perform blacklist checking from site24x7.com
+        // Perform blacklist checking from site24x7
         try {
-            if (!empty($this->credentials['site247'])) {
+            if (!empty($this->credentials['site247']) && (strtolower($this->credentials['site247']) !== 'off')) {
                 $param = [
                     'execute' => 'performRBLCheck',
                     'method' => 'performRBLCheck',
