@@ -14,6 +14,7 @@ class EmailFilterSdk
     private array $credentials;
     private string $tld;
     private array $allowedTlds = [];
+    private static ?string $disposableCache = null;
 
     public function __construct(string $tld='', array $credentials = [])
     {
@@ -234,39 +235,11 @@ class EmailFilterSdk
         }
 
         // Local disposable domains quick check (cheap)
-        $disposableDomains = [
-            'mailinator.com',
-            'guerrillamail.com',
-            'trashmail.com',
-            'tempmail.net',
-            'yopmail.com',
-            'getnada.com',
-            'sharklasers.com',
-            'inboxbear.com',
-            'dispostable.com',
-            'cexch.com',
-            'comfythings.com',
-            'bltiwd.com',
-            'spam4.me',
-            'osxofulk.com',
-            'jkotypc.com',
-            'cmhvzylmfc.com',
-            'zudpck.com',
-            'daouse.com',
-            'illubd.com',
-            'mkzaso.com',
-            'mrotzis.com',
-            'xkxkud.com',
-            'wnbaldwy.com',
-            'bwmyga.com',
-            'ozsaip.com',
-            'yzcalo.com',
-            'forexzig.com',
-            'tempmail.id.vn',
-            'hathitrannhien.edu.vn',
-            'nghienplus.io.vn',
-        ];
-        if (in_array($domain, $disposableDomains, true)) {
+        $disposableFile = __DIR__ . '/disposable.txt';
+        if (self::$disposableCache === null && file_exists($disposableFile)) {
+            self::$disposableCache = "\n" . file_get_contents($disposableFile) . "\n";
+        }
+        if (self::$disposableCache !== null && str_contains(self::$disposableCache, "\n" . $domain . "\n")) {
             $result['trustable']['disposable'] = true;
             $result['recommend'] = false;
             $result['reason'] = 'This email was marked as disposable';
@@ -404,7 +377,7 @@ class EmailFilterSdk
                 }
                 if ($result['trustable']['domain_trust']) {
                     $result['trustable']['domain_trust'] = (bool)($apivoid['data']['has_a_records'] ?? false);
-                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'valid_tld', 'is_spoofable'];
+                    $tmp = ['has_mx_records', 'has_spf_records', 'dmarc_configured', 'valid_tld'];
                     foreach ($tmp as $t) {
                         if (empty($apivoid['data'][$t])) {
                             $result['trustable']['domain_trust'] = false;

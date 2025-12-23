@@ -82,6 +82,18 @@ final class EmailFilterSdkTest extends TestCase
         $this->assertSame('This email was marked as disposable', $res['reason']);
     }
 
+    public function testDisposableDomainSubstringNoFalsePositive(): void
+    {
+        $sdk = $this->sdk('com|net');
+        // mail.com is NOT disposable, but 0-mail.com IS in the list.
+        $res = $sdk->validate('user@mail.com', true);
+        $this->assertFalse($res['trustable']['disposable']);
+
+        // gmail.com is NOT disposable, but 001gmail.com IS in the list.
+        $res = $sdk->validate('user@gmail.com', true);
+        $this->assertFalse($res['trustable']['disposable']);
+    }
+
     public function testIdnDomainHandledWhenIntlAvailable(): void
     {
         if (!function_exists('idn_to_ascii')) {
