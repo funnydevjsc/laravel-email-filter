@@ -555,7 +555,7 @@ class EmailFilterSdk
             $result['trustable']['fraud_score'] = 0;
         }
 
-        if ($black > 0)
+        if ($black > 0) {
             $total = 0;
             // Perform blacklist checking from poste
             try {
