@@ -168,7 +168,7 @@ class EmailFilterSdk
         ];
     }
 
-    public function handle(string $email, bool $fast = true, bool $score = false): array
+    public function handle(string $email, bool $fast = true, bool $score = false, int $black = 0): array
     {
         // Force email lowercase per policy
         $email = strtolower(trim($email));
@@ -555,66 +555,70 @@ class EmailFilterSdk
             $result['trustable']['fraud_score'] = 0;
         }
 
-        $total = 0;
-        // Perform blacklist checking from poste
-        try {
-            if (!empty($this->credentials['poste']) && (strtolower($this->credentials['poste']) !== 'off')) {
-                $response = $this->request('GET', 'https://poste.io/api/web-dnsbl?query=' . $domain);
-                if ($response) {
-                    $this_total = substr_count($response, '"name"');
-                    $total += $this_total;
-                    $result['trustable']['blacklist'] += $this_total - substr_count($response, '"ok"') - substr_count($response, '"error"');
+        if ($black > 0)
+            $total = 0;
+            // Perform blacklist checking from poste
+            try {
+                if (!empty($this->credentials['poste']) && (strtolower($this->credentials['poste']) !== 'off')) {
+                    $response = $this->request('GET', 'https://poste.io/api/web-dnsbl?query=' . $domain);
+                    if ($response) {
+                        $this_total = substr_count($response, '"name"');
+                        $total += $this_total;
+                        $result['trustable']['blacklist'] += $this_total - substr_count($response, '"ok"') - substr_count($response, '"error"');
+                    }
                 }
-            }
-        } catch (Exception) {}
-
-        // Perform blacklist checking from site24x7
-        try {
-            if (!empty($this->credentials['site247']) && (strtolower($this->credentials['site247']) !== 'off')) {
-                $param = [
-                    'execute' => 'performRBLCheck',
-                    'method' => 'performRBLCheck',
-                    'url' => $domain,
-                    'hostName' => $domain,
-                    'timestamp' => time()
-                ];
-                $header = [
-                    'Connection' => 'keep-alive',
-                    'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-                    'sec-ch-ua' => '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
-                    'sec-ch-ua-platform' => '"macOS"',
-                    'sec-ch-ua-mobile' => '?0',
-                    'X-Requested-With' => 'XMLHttpRequest',
-                    'Referer' => 'https://www.site24x7.com/tools/blacklist-check.html'
-                ];
-                $response = $this->request('POST', 'https://www.site24x7.com/tools/action.do', $param, 'body', false, $header, [], ['timeout' => $fast ? 3 : 10]);
-                if ($response) {
-                    $total += 19;
-                    $result['trustable']['blacklist'] += substr_count($response, 'Blocklisted in ');
+            } catch (Exception) {}
+    
+            // Perform blacklist checking from site24x7
+            try {
+                if (!empty($this->credentials['site247']) && (strtolower($this->credentials['site247']) !== 'off')) {
+                    $param = [
+                        'execute' => 'performRBLCheck',
+                        'method' => 'performRBLCheck',
+                        'url' => $domain,
+                        'hostName' => $domain,
+                        'timestamp' => time()
+                    ];
+                    $header = [
+                        'Connection' => 'keep-alive',
+                        'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+                        'sec-ch-ua' => '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
+                        'sec-ch-ua-platform' => '"macOS"',
+                        'sec-ch-ua-mobile' => '?0',
+                        'X-Requested-With' => 'XMLHttpRequest',
+                        'Referer' => 'https://www.site24x7.com/tools/blacklist-check.html'
+                    ];
+                    $response = $this->request('POST', 'https://www.site24x7.com/tools/action.do', $param, 'body', false, $header, [], ['timeout' => $fast ? 3 : 10]);
+                    if ($response) {
+                        $total += 19;
+                        $result['trustable']['blacklist'] += substr_count($response, 'Blocklisted in ');
+                    }
                 }
+            } catch (Exception) {}
+    
+            if (($total === 0) || ($result['trustable']['blacklist'] === 0)) {
+                $result['trustable']['blacklist'] = 0;
+            } else {
+                $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
             }
-        } catch (Exception) {}
-
-        if (($total === 0) || ($result['trustable']['blacklist'] === 0)) {
-            $result['trustable']['blacklist'] = 0;
+    
+            if ($fast && ($result['trustable']['blacklist'] >= 30)) {
+                $result['reason'] = 'This email was marked as blacklisted';
+                $result['recommend'] = false;
+                return $result;
+            }
         } else {
-            $result['trustable']['blacklist'] = round(($result['trustable']['blacklist'] / $total) * 100, 2);
-        }
-
-        if ($fast && ($result['trustable']['blacklist'] >= 30)) {
-            $result['reason'] = 'This email was marked as blacklisted';
-            $result['recommend'] = false;
-            return $result;
+            $result['trustable']['blacklist'] = 0;
         }
 
         return $result;
     }
 
-    public function validate(string $email, bool $fast = true, bool $score = false): array
+    public function validate(string $email, bool $fast = true, bool $score = false, int $black = 0): array
     {
         if ($fast) {
             // Cache for burst protection (fast repeated checks)
-            $cacheKey = 'email_filter:'.md5(implode('|', [$email, (int)$fast, (int)$score, $this->tld]));
+            $cacheKey = 'email_filter:'.md5(implode('|', [$email, (int)$fast, (int)$score, (int)$black, $this->tld]));
             if ($fast) {
                 try {
                     $cached = Cache::get($cacheKey);
@@ -627,7 +631,7 @@ class EmailFilterSdk
             }
         }
 
-        $result = $this->handle($email, $fast, $score);
+        $result = $this->handle($email, $fast, $score, $black);
 
         // Cache only final results
         try { Cache::put($cacheKey, $result, 3600); } catch (Exception) {}
