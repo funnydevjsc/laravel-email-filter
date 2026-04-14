@@ -420,11 +420,6 @@ class EmailFilterSdk
                         }
                     }
                 }
-                if ($fast && !$result['trustable']['username']) {
-                    $result['reason'] = 'This email username was marked as dirty';
-                    $result['recommend'] = false;
-                    return $result;
-                }
 
                 if ($apivoid['data']['should_block']) {
                     $result['reason'] = 'This email was marked as should be blocked';
